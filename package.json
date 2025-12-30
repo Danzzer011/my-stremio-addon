@@ -1,12 +1,14 @@
 {
-  "name": "my-stremio-addon",
+  "name": "stremio-addon",
   "version": "1.0.0",
+  "description": "Stremio addon for Railway",
   "main": "index.js",
-  "dependencies": {
-    "stremio-addon-sdk": "^1.6.0",
-    "axios": "^1.6.0"
-  },
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "stremio-addon-sdk": "^1.6.0",
+    "axios": "^1.7.0",
+    "cheerio": "^1.0.0-rc.12"
   }
 }
