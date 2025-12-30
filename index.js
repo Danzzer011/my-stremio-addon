@@ -1,10 +1,11 @@
 const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 const axios = require("axios");
+const cheerio = require("cheerio");
 
 const manifest = {
-    id: "community.mycustomsource",
-    name: "My Video Source",
-    version: "1.0.0",
+    id: "community.mysource.railway",
+    name: "Railway Video Source",
+    version: "1.0.1",
     description: "Plays videos from a.asd.homes",
     resources: ["stream"],
     types: ["movie", "series"],
@@ -15,33 +16,38 @@ const builder = new addonBuilder(manifest);
 
 builder.defineStreamHandler(async (args) => {
     try {
-        const meta = await axios.get(`https://v3-cinemeta.strem.io/meta/${args.type}/${args.id}.json`);
+        // Get movie name from Stremio
+        const meta = await axios.get(`https://v3-cinemeta.strem.io/meta/${args.type}/${args.id.split(':')[0]}.json`);
         const movieName = meta.data.meta.name.toLowerCase();
 
         const siteUrl = "https://a.asd.homes/main4/";
-        const response = await axios.get(siteUrl);
-        const html = response.data;
+        const response = await axios.get(siteUrl, { timeout: 5000 });
+        const $ = cheerio.load(response.data);
 
         const streams = [];
-        // This looks for any link containing words from the movie title
-        const words = movieName.split(" ");
-        const regex = new RegExp(`href="([^"]*${words[0]}[^"]*)"`, "gi");
-        
-        let match;
-        while ((match = regex.exec(html)) !== null) {
-            const fileName = match[1];
-            if (fileName.endsWith(".mp4") || fileName.endsWith(".mkv") || fileName.endsWith(".avi")) {
-                streams.push({
-                    name: "My Source",
-                    title: fileName,
-                    url: siteUrl + fileName
-                });
+        const firstWord = movieName.split(" ")[0];
+
+        // Properly find all links on the page
+        $("a").each((i, el) => {
+            const href = $(el).attr("href");
+            if (href && href.toLowerCase().includes(firstWord)) {
+                if (href.endsWith(".mp4") || href.endsWith(".mkv")) {
+                    streams.push({
+                        name: "My Source",
+                        title: href,
+                        url: siteUrl + href
+                    });
+                }
             }
-        }
+        });
+
         return { streams };
     } catch (e) {
+        console.error("Error fetching streams:", e.message);
         return { streams: [] };
     }
 });
 
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
+// FIX: Railway assigns a dynamic port via process.env.PORT
+const port = process.env.PORT || 7000;
+serveHTTP(builder.getInterface(), { port });
